@@ -1,0 +1,33 @@
+
+软件目录结构
+	|
+	-- Core 软件核心库
+	|
+	-- Std 软件标准库
+	|
+	-- SEngine 软件服务器引擎库
+	|
+	-- NatServer 软件Nat转发服务器
+	|	|
+	|	-- Script 软件脚本
+	|	|
+	|	-- Nat.cfg  软件NAT相关配置表
+	|	|
+	|
+	-- Start.bat 双击启动进程
+	|
+	-- 使用说明.txt
+
+
+配置说明，配置文件使用Json结构
+
+【Nat.cfg】
+wan_ip 主要用于NatServer和其他模块之间的连接。 可以取127.0.0.1或者本地局域网IP
+yun_ip 如果是云服务器就填外网ip，否则填写空串
+nat_route_num 每个NatServer都有自己的唯一编号
+
+start_nat_port 起始端口，所有的NAT端口都从这个值开始申请
+nat_port_count RTP一共多少个端口
+
+【进阶】
+1. 当遇到同一台机器，部署多个NatSever时。注意配置的Nat端口要错开

@@ -1,0 +1,95 @@
+
+namespace NatServer;
+
+protected var g_ConfigSystem:ALittle.IJsonConfig;
+protected var g_ModulePath:string;
+
+// 模块入口函数
+public async static __Module_Setup(string sengine_path, string module_path, string config_path)
+{
+    g_ConfigSystem = ALittle.CreateJsonConfig(config_path, true);
+    g_ModulePath = module_path;
+
+    // 加载Sip
+    alittle.Require(sengine_path, "Script/Nat/NatSystem");
+
+    // 获取当前服务器ip配置
+    var wan_ip = g_ConfigSystem.GetConfig("wan_ip", "127.0.0.1");
+    var yun_ip = g_ConfigSystem.GetConfig("yun_ip", "");
+
+    // 一台服务器可以有多个NAT服务器，nat_route_num表示NAT服务器编号
+    var nat_route_num = g_ConfigSystem.GetConfig("nat_route_num", 1);
+
+    // 启动路由服务器
+    __CPPAPI_ServerSchedule.StartRouteSystem(ALittle.RouteType.RT_NAT, nat_route_num);
+
+    // 监听端口，提供Rtp服务器连接
+    __CPPAPI_ServerSchedule.CreateConnectServer(yun_ip, wan_ip, ALittle.RoutePort.RT_NAT_CONNECT + nat_route_num);
+
+    var start_nat_port = g_ConfigSystem.GetConfig("start_nat_port", 5060);
+    var nat_port_count = g_ConfigSystem.GetConfig("nat_port_count", 10000);
+    A_NatSystem.Setup(wan_ip, start_nat_port, nat_port_count);
+}
+
+// 模块结束函数
+public static __Module_Shutdown()
+{
+    A_NatSystem.Shutdown();
+}
+
+// 使用端口
+public struct SS2NAT_QUsePort
+{
+    int port;	// 如果不为0，表示指定要某个端口
+}
+
+public struct NAT2SS_AUsePort
+{
+    int port;	// 实际分配的端口
+    string password;	// 鉴权密码
+}
+
+[Msg]
+public await static HandleQUsePort(ALittle.IMsgCommon client, SS2NAT_QUsePort msg) : NAT2SS_AUsePort
+{
+    var port, password = A_NatSystem.UsePort(client, msg.port);
+    assert(port, "can't use port:"..msg.port);
+    var rsp = new NAT2SS_AUsePort();
+    rsp.port = port;
+    rsp.password = password;
+    return rsp;
+}
+
+// 绑定目标
+public struct SS2NAT_QSetTarget
+{
+    int port;
+    string target_ip;
+    int target_port;
+}
+
+public struct SS2NAT_ASetTarget
+{
+}
+
+
+[Msg]
+public await static HandleQSetTarget(ALittle.IMsgCommon client, SS2NAT_QSetTarget msg) : SS2NAT_ASetTarget
+{
+    var error = A_NatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
+    if (error != null) assert(false, error);
+
+    return new SS2NAT_ASetTarget();
+}
+
+// 释放端口
+public struct SS2NAT_NReleasePort
+{
+    int port;
+}
+
+[Msg]
+public static HandleQReleasePort(ALittle.IMsgCommon client, SS2NAT_NReleasePort msg)
+{
+    A_NatSystem.ReleasePort(client, msg.port);
+}
