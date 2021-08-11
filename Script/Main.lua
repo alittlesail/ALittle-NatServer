@@ -40,6 +40,8 @@ option_map = {}
 
 NatServer.g_ConfigSystem = nil
 NatServer.g_ModulePath = nil
+NatServer.g_DynamicNatSystem = nil
+NatServer.g_StaticNatSystem = nil
 function NatServer.__Module_Setup(sengine_path, module_path, config_path)
 	NatServer.g_ConfigSystem = ALittle.CreateJsonConfig(config_path, true)
 	NatServer.g_ModulePath = module_path
@@ -49,39 +51,55 @@ function NatServer.__Module_Setup(sengine_path, module_path, config_path)
 	local nat_route_num = NatServer.g_ConfigSystem:GetConfig("nat_route_num", 1)
 	__CPPAPI_ServerSchedule:StartRouteSystem(12, nat_route_num)
 	__CPPAPI_ServerSchedule:CreateConnectServer(yun_ip, wan_ip, 2100 + nat_route_num)
-	local start_nat_port = NatServer.g_ConfigSystem:GetConfig("start_nat_port", 5060)
-	local nat_port_count = NatServer.g_ConfigSystem:GetConfig("nat_port_count", 10000)
-	A_NatSystem:Setup(wan_ip, start_nat_port, nat_port_count)
+	local static_start_nat_port = NatServer.g_ConfigSystem:GetConfig("static_start_nat_port", 5060)
+	local static_nat_port_count = NatServer.g_ConfigSystem:GetConfig("static_nat_port_count", 1000)
+	NatServer.g_StaticNatSystem = ALittle.NatSystem()
+	NatServer.g_StaticNatSystem:Setup(wan_ip, static_start_nat_port, static_nat_port_count)
+	local dynamic_start_nat_port = NatServer.g_ConfigSystem:GetConfig("dynamic_start_nat_port", 10000)
+	local dynamic_nat_port_count = NatServer.g_ConfigSystem:GetConfig("dynamic_nat_port_count", 10000)
+	NatServer.g_DynamicNatSystem = ALittle.NatSystem()
+	NatServer.g_DynamicNatSystem:Setup(wan_ip, dynamic_start_nat_port, dynamic_nat_port_count)
 end
 NatServer.__Module_Setup = Lua.CoWrap(NatServer.__Module_Setup)
 
 function NatServer.__Module_Shutdown()
-	A_NatSystem:Shutdown()
+	NatServer.g_StaticNatSystem:Shutdown()
+	NatServer.g_DynamicNatSystem:Shutdown()
 end
 
 function NatServer.HandleQUsePort(client, msg)
 	local ___COROUTINE = coroutine.running()
-	local port, password = A_NatSystem:UsePort(client, msg.port)
-	Lua.Assert(port, "can't use port:" .. msg.port)
 	local rsp = {}
-	rsp.port = port
-	rsp.password = password
+	if msg.port == 0 or msg.port == nil then
+		rsp.port, rsp.password = NatServer.g_DynamicNatSystem:UsePort(client, msg.port)
+	else
+		rsp.port, rsp.password = NatServer.g_StaticNatSystem:UsePort(client, msg.port)
+	end
+	Lua.Assert(rsp.port, "can't use port:" .. msg.port)
 	return rsp
 end
 
 ALittle.RegMsgRpcCallback(953391362, NatServer.HandleQUsePort, 726219872)
 function NatServer.HandleQSetTarget(client, msg)
 	local ___COROUTINE = coroutine.running()
-	local error = A_NatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
-	if error ~= nil then
-		Lua.Assert(false, error)
+	if NatServer.g_DynamicNatSystem:HasClientAndPort(client, msg.port) then
+		local error = NatServer.g_DynamicNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
+		if error ~= nil then
+			Lua.Assert(false, error)
+		end
+	elseif NatServer.g_StaticNatSystem:HasClientAndPort(client, msg.port) then
+		local error = NatServer.g_StaticNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
+		if error ~= nil then
+			Lua.Assert(false, error)
+		end
 	end
 	return {}
 end
 
 ALittle.RegMsgRpcCallback(1835539840, NatServer.HandleQSetTarget, -777595446)
 function NatServer.HandleQReleasePort(client, msg)
-	A_NatSystem:ReleasePort(client, msg.port)
+	NatServer.g_DynamicNatSystem:ReleasePort(client, msg.port)
+	NatServer.g_StaticNatSystem:ReleasePort(client, msg.port)
 end
 
 ALittle.RegMsgCallback(-1673577841, NatServer.HandleQReleasePort)

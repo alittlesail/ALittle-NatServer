@@ -4,6 +4,9 @@ namespace NatServer;
 protected var g_ConfigSystem:ALittle.IJsonConfig;
 protected var g_ModulePath:string;
 
+protected var g_DynamicNatSystem:ALittle.NatSystem;
+protected var g_StaticNatSystem:ALittle.NatSystem;
+
 // 模块入口函数
 public async static __Module_Setup(string sengine_path, string module_path, string config_path)
 {
@@ -26,15 +29,22 @@ public async static __Module_Setup(string sengine_path, string module_path, stri
     // 监听端口，提供Rtp服务器连接
     __CPPAPI_ServerSchedule.CreateConnectServer(yun_ip, wan_ip, ALittle.RoutePort.RT_NAT_CONNECT + nat_route_num);
 
-    var start_nat_port = g_ConfigSystem.GetConfig("start_nat_port", 5060);
-    var nat_port_count = g_ConfigSystem.GetConfig("nat_port_count", 10000);
-    A_NatSystem.Setup(wan_ip, start_nat_port, nat_port_count);
+    var static_start_nat_port = g_ConfigSystem.GetConfig("static_start_nat_port", 5060);
+    var static_nat_port_count = g_ConfigSystem.GetConfig("static_nat_port_count", 1000);
+    g_StaticNatSystem = new ALittle.NatSystem();
+    g_StaticNatSystem.Setup(wan_ip, static_start_nat_port, static_nat_port_count);
+
+    var dynamic_start_nat_port = g_ConfigSystem.GetConfig("dynamic_start_nat_port", 10000);
+    var dynamic_nat_port_count = g_ConfigSystem.GetConfig("dynamic_nat_port_count", 10000);
+    g_DynamicNatSystem = new ALittle.NatSystem();
+    g_DynamicNatSystem.Setup(wan_ip, dynamic_start_nat_port, dynamic_nat_port_count);
 }
 
 // 模块结束函数
 public static __Module_Shutdown()
 {
-    A_NatSystem.Shutdown();
+    g_StaticNatSystem.Shutdown();
+    g_DynamicNatSystem.Shutdown();
 }
 
 // 使用端口
@@ -52,11 +62,12 @@ public struct NAT2SS_AUsePort
 [Msg]
 public await static HandleQUsePort(ALittle.IMsgCommon client, SS2NAT_QUsePort msg) : NAT2SS_AUsePort
 {
-    var port, password = A_NatSystem.UsePort(client, msg.port);
-    assert(port, "can't use port:"..msg.port);
     var rsp = new NAT2SS_AUsePort();
-    rsp.port = port;
-    rsp.password = password;
+    if (msg.port == 0 || msg.port == null)
+        rsp.port, rsp.password = g_DynamicNatSystem.UsePort(client, msg.port);
+    else
+        rsp.port, rsp.password = g_StaticNatSystem.UsePort(client, msg.port);
+    assert(rsp.port, "can't use port:"..msg.port);
     return rsp;
 }
 
@@ -76,8 +87,16 @@ public struct SS2NAT_ASetTarget
 [Msg]
 public await static HandleQSetTarget(ALittle.IMsgCommon client, SS2NAT_QSetTarget msg) : SS2NAT_ASetTarget
 {
-    var error = A_NatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
-    if (error != null) assert(false, error);
+    if (g_DynamicNatSystem.HasClientAndPort(client, msg.port))
+    {
+        var error = g_DynamicNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
+    	if (error != null) assert(false, error);
+    }
+    elseif (g_StaticNatSystem.HasClientAndPort(client, msg.port))
+    {
+        var error = g_StaticNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
+    	if (error != null) assert(false, error);
+    }
 
     return new SS2NAT_ASetTarget();
 }
@@ -91,5 +110,6 @@ public struct SS2NAT_NReleasePort
 [Msg]
 public static HandleQReleasePort(ALittle.IMsgCommon client, SS2NAT_NReleasePort msg)
 {
-    A_NatSystem.ReleasePort(client, msg.port);
+    g_DynamicNatSystem.ReleasePort(client, msg.port);
+    g_StaticNatSystem.ReleasePort(client, msg.port);
 }
