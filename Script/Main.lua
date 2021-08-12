@@ -7,12 +7,6 @@ local ALittle = ALittle
 local ___pairs = pairs
 local ___ipairs = ipairs
 
-ALittle.RegStruct(1835539840, "NatServer.SS2NAT_QSetTarget", {
-name = "NatServer.SS2NAT_QSetTarget", ns_name = "NatServer", rl_name = "SS2NAT_QSetTarget", hash_code = 1835539840,
-name_list = {"port","target_ip","target_port"},
-type_list = {"int","string","int"},
-option_map = {}
-})
 ALittle.RegStruct(-1673577841, "NatServer.SS2NAT_NReleasePort", {
 name = "NatServer.SS2NAT_NReleasePort", ns_name = "NatServer", rl_name = "SS2NAT_NReleasePort", hash_code = -1673577841,
 name_list = {"port"},
@@ -21,14 +15,8 @@ option_map = {}
 })
 ALittle.RegStruct(953391362, "NatServer.SS2NAT_QUsePort", {
 name = "NatServer.SS2NAT_QUsePort", ns_name = "NatServer", rl_name = "SS2NAT_QUsePort", hash_code = 953391362,
-name_list = {"port"},
-type_list = {"int"},
-option_map = {}
-})
-ALittle.RegStruct(-777595446, "NatServer.SS2NAT_ASetTarget", {
-name = "NatServer.SS2NAT_ASetTarget", ns_name = "NatServer", rl_name = "SS2NAT_ASetTarget", hash_code = -777595446,
-name_list = {},
-type_list = {},
+name_list = {"port","target_ip","target_port"},
+type_list = {"int","string","int"},
 option_map = {}
 })
 ALittle.RegStruct(726219872, "NatServer.NAT2SS_AUsePort", {
@@ -72,31 +60,26 @@ function NatServer.HandleQUsePort(client, msg)
 	local rsp = {}
 	if msg.port == 0 or msg.port == nil then
 		rsp.port, rsp.password = NatServer.g_DynamicNatSystem:UsePort(client, msg.port)
+		if rsp.port ~= nil and msg.target_ip ~= "" and msg.target_ip ~= nil then
+			local error = NatServer.g_DynamicNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
+			if error ~= nil then
+				Lua.Assert(false, error)
+			end
+		end
 	else
 		rsp.port, rsp.password = NatServer.g_StaticNatSystem:UsePort(client, msg.port)
+		if rsp.port ~= nil and msg.target_ip ~= "" and msg.target_ip ~= nil then
+			local error = NatServer.g_StaticNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
+			if error ~= nil then
+				Lua.Assert(false, error)
+			end
+		end
 	end
 	Lua.Assert(rsp.port, "can't use port:" .. msg.port)
 	return rsp
 end
 
 ALittle.RegMsgRpcCallback(953391362, NatServer.HandleQUsePort, 726219872)
-function NatServer.HandleQSetTarget(client, msg)
-	local ___COROUTINE = coroutine.running()
-	if NatServer.g_DynamicNatSystem:HasClientAndPort(client, msg.port) then
-		local error = NatServer.g_DynamicNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
-		if error ~= nil then
-			Lua.Assert(false, error)
-		end
-	elseif NatServer.g_StaticNatSystem:HasClientAndPort(client, msg.port) then
-		local error = NatServer.g_StaticNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
-		if error ~= nil then
-			Lua.Assert(false, error)
-		end
-	end
-	return {}
-end
-
-ALittle.RegMsgRpcCallback(1835539840, NatServer.HandleQSetTarget, -777595446)
 function NatServer.HandleQReleasePort(client, msg)
 	NatServer.g_DynamicNatSystem:ReleasePort(client, msg.port)
 	NatServer.g_StaticNatSystem:ReleasePort(client, msg.port)

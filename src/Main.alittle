@@ -51,6 +51,8 @@ public static __Module_Shutdown()
 public struct SS2NAT_QUsePort
 {
     int port;	// 如果不为0，表示指定要某个端口
+    string target_ip;
+    int target_port;
 }
 
 public struct NAT2SS_AUsePort
@@ -64,41 +66,25 @@ public await static HandleQUsePort(ALittle.IMsgCommon client, SS2NAT_QUsePort ms
 {
     var rsp = new NAT2SS_AUsePort();
     if (msg.port == 0 || msg.port == null)
+    {
         rsp.port, rsp.password = g_DynamicNatSystem.UsePort(client, msg.port);
+        if (rsp.port != null && msg.target_ip != "" && msg.target_ip != null)
+        {
+            var error = g_DynamicNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
+            if (error != null) assert(false, error);
+        }
+    }
     else
+    {
         rsp.port, rsp.password = g_StaticNatSystem.UsePort(client, msg.port);
+        if (rsp.port != null && msg.target_ip != "" && msg.target_ip != null)
+        {
+            var error = g_StaticNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
+            if (error != null) assert(false, error);
+        }
+    }
     assert(rsp.port, "can't use port:"..msg.port);
     return rsp;
-}
-
-// 绑定目标
-public struct SS2NAT_QSetTarget
-{
-    int port;
-    string target_ip;
-    int target_port;
-}
-
-public struct SS2NAT_ASetTarget
-{
-}
-
-
-[Msg]
-public await static HandleQSetTarget(ALittle.IMsgCommon client, SS2NAT_QSetTarget msg) : SS2NAT_ASetTarget
-{
-    if (g_DynamicNatSystem.HasClientAndPort(client, msg.port))
-    {
-        var error = g_DynamicNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
-    	if (error != null) assert(false, error);
-    }
-    elseif (g_StaticNatSystem.HasClientAndPort(client, msg.port))
-    {
-        var error = g_StaticNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
-    	if (error != null) assert(false, error);
-    }
-
-    return new SS2NAT_ASetTarget();
 }
 
 // 释放端口
