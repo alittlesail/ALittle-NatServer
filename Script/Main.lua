@@ -61,7 +61,7 @@ function NatServer.HandleQUsePort(client, msg)
 	if msg.port == 0 or msg.port == nil then
 		rsp.port, rsp.password = NatServer.g_DynamicNatSystem:UsePort(client, msg.port)
 		if rsp.port ~= nil and msg.target_ip ~= "" and msg.target_ip ~= nil then
-			local error = NatServer.g_DynamicNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
+			local error = NatServer.g_DynamicNatSystem:SetTarget(client, rsp.port, msg.target_ip, msg.target_port)
 			if error ~= nil then
 				Lua.Assert(false, error)
 			end
@@ -69,7 +69,7 @@ function NatServer.HandleQUsePort(client, msg)
 	else
 		rsp.port, rsp.password = NatServer.g_StaticNatSystem:UsePort(client, msg.port)
 		if rsp.port ~= nil and msg.target_ip ~= "" and msg.target_ip ~= nil then
-			local error = NatServer.g_StaticNatSystem:SetTarget(client, msg.port, msg.target_ip, msg.target_port)
+			local error = NatServer.g_StaticNatSystem:SetTarget(client, rsp.port, msg.target_ip, msg.target_port)
 			if error ~= nil then
 				Lua.Assert(false, error)
 			end

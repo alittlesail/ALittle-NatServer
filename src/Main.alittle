@@ -70,7 +70,7 @@ public await static HandleQUsePort(ALittle.IMsgCommon client, SS2NAT_QUsePort ms
         rsp.port, rsp.password = g_DynamicNatSystem.UsePort(client, msg.port);
         if (rsp.port != null && msg.target_ip != "" && msg.target_ip != null)
         {
-            var error = g_DynamicNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
+            var error = g_DynamicNatSystem.SetTarget(client, rsp.port, msg.target_ip, msg.target_port);
             if (error != null) assert(false, error);
         }
     }
@@ -79,7 +79,7 @@ public await static HandleQUsePort(ALittle.IMsgCommon client, SS2NAT_QUsePort ms
         rsp.port, rsp.password = g_StaticNatSystem.UsePort(client, msg.port);
         if (rsp.port != null && msg.target_ip != "" && msg.target_ip != null)
         {
-            var error = g_StaticNatSystem.SetTarget(client, msg.port, msg.target_ip, msg.target_port);
+            var error = g_StaticNatSystem.SetTarget(client, rsp.port, msg.target_ip, msg.target_port);
             if (error != null) assert(false, error);
         }
     }
