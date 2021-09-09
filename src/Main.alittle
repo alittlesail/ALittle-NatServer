@@ -84,6 +84,7 @@ public await static HandleQUsePort(ALittle.IMsgCommon client, SS2NAT_QUsePort ms
         }
     }
     assert(rsp.port, "can't use port:"..msg.port);
+    ALittle.Log("use port, from port:"..msg.port.." bind port:"..rsp.port.." target "..msg.target_ip..":"..msg.target_port);
     return rsp;
 }
 
@@ -96,6 +97,7 @@ public struct SS2NAT_NReleasePort
 [Msg]
 public static HandleQReleasePort(ALittle.IMsgCommon client, SS2NAT_NReleasePort msg)
 {
+    ALittle.Log("release port, bind port:"..msg.port);
     g_DynamicNatSystem.ReleasePort(client, msg.port);
     g_StaticNatSystem.ReleasePort(client, msg.port);
 }

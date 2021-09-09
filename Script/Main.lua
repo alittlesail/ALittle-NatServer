@@ -76,11 +76,13 @@ function NatServer.HandleQUsePort(client, msg)
 		end
 	end
 	Lua.Assert(rsp.port, "can't use port:" .. msg.port)
+	ALittle.Log("use port, from port:" .. msg.port .. " bind port:" .. rsp.port .. " target " .. msg.target_ip .. ":" .. msg.target_port)
 	return rsp
 end
 
 ALittle.RegMsgRpcCallback(953391362, NatServer.HandleQUsePort, 726219872)
 function NatServer.HandleQReleasePort(client, msg)
+	ALittle.Log("release port, bind port:" .. msg.port)
 	NatServer.g_DynamicNatSystem:ReleasePort(client, msg.port)
 	NatServer.g_StaticNatSystem:ReleasePort(client, msg.port)
 end
